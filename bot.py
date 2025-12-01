@@ -14,31 +14,32 @@ ELEVENLABS_API_KEY = os.getenv('ELEVENLABS_API_KEY')
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# DeepSeek — с защитой от ошибок
 async def ask_deepseek(prompt: str) -> str:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                "https://api.deepseek.com/chat/completions",
+                "https://api.x.ai/v1/chat/completions",  # Официальный endpoint xAI
                 json={
-                    "model": "deepseek-chat",
+                    "model": "grok-beta",  # Или "grok-4" для продвинутого
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.7,
                     "max_tokens": 1000
                 },
-                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+                headers={
+                    "Authorization": f"Bearer {os.getenv('GROK_API_KEY')}",
+                    "Content-Type": "application/json"
+                },
                 timeout=30
             ) as resp:
                 if resp.status != 200:
-                    return f"DeepSeek вернул ошибку {resp.status}"
+                    return f"Грок вернул ошибку {resp.status} (проверь ключ или квоту)"
                 data = await resp.json()
-                # Защита от странных ответов
                 if "choices" in data and len(data["choices"]) > 0:
                     return data["choices"][0]["message"]["content"]
                 else:
-                    return "DeepSeek ничего не ответил :("
+                    return "Грок ничего не ответил (проверь промпт)"
     except Exception as e:
-        return f"Ошибка связи с DeepSeek: {str(e)}"
+        return f"Ошибка связи с Grok: {str(e)}"
 
 # Flux картинка
 async def generate_image(prompt: str) -> str:
