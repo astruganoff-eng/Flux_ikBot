@@ -14,16 +14,31 @@ ELEVENLABS_API_KEY = os.getenv('ELEVENLABS_API_KEY')
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# DeepSeek
+# DeepSeek — с защитой от ошибок
 async def ask_deepseek(prompt: str) -> str:
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            "https://api.deepseek.com/chat/completions",
-            json={"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7},
-            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"}
-        ) as resp:
-            data = await resp.json()
-            return data['choices'][0]['message']['content']
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.deepseek.com/chat/completions",
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 1000
+                },
+                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+                timeout=30
+            ) as resp:
+                if resp.status != 200:
+                    return f"DeepSeek вернул ошибку {resp.status}"
+                data = await resp.json()
+                # Защита от странных ответов
+                if "choices" in data and len(data["choices"]) > 0:
+                    return data["choices"][0]["message"]["content"]
+                else:
+                    return "DeepSeek ничего не ответил :("
+    except Exception as e:
+        return f"Ошибка связи с DeepSeek: {str(e)}"
 
 # Flux картинка
 async def generate_image(prompt: str) -> str:
